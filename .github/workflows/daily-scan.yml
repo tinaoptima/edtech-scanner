@@ -1,0 +1,44 @@
+name: EdTech AI Scanner - Daily Digest
+
+on:
+  schedule:
+    # Runs every day at 7:00 AM Eastern (12:00 UTC)
+    - cron: '0 12 * * *'
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+permissions:
+  contents: write  # Needed to commit seen_tools.json
+
+jobs:
+  scan-and-email:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install feedparser
+
+      - name: Run EdTech Scanner
+        env:
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          HISTORY_FILE: seen_tools.json
+        run: python edtech_scanner.py
+
+      - name: Commit updated history
+        run: |
+          git config user.name "EdTech Scanner Bot"
+          git config user.email "bot@edtech-scanner.local"
+          git add seen_tools.json
+          git diff --staged --quiet || git commit -m "Update seen tools [$(date +%Y-%m-%d)]"
+          git push
